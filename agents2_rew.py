@@ -109,8 +109,8 @@ class Agents:
             move = random.randint(0,2)
             final_move[move]=1
         else:
-            state0 = torch.tensor(state,dtype=torch.float).cuda()
-            prediction = self.models[snake_id](state0).cuda() # prediction by model
+            state0 = torch.tensor(state,dtype=torch.float).cpu()
+            prediction = self.models[snake_id](state0).cpu() # prediction by model
             move = torch.argmax(prediction).item()
             final_move[move]=1
         return final_move
@@ -120,8 +120,10 @@ def train():
     plot_mean_scores = []
     total_score = 0
 
-    rewarders = [Rewarder1(), Rewarder1()]
-    agent = Agents(rewarders, 2)
+    # rewarders = [Rewarder1(), Rewarder1(opponent_took_food=0)]
+    # agent = Agents(rewarders, 2)
+    rewarders = [Rewarder1()]
+    agent = Agents(rewarders, 1)
     game = SnakeGameAI2(n = agent.n_snakes)
     records = [0 for _ in range(agent.n_snakes)]
     while True:
@@ -168,12 +170,13 @@ def train():
 
 
 class Rewarder1:
-    def __init__(self, food_taken = 100, death = -100, iterations_exceeded = -100, closer_to_food = 2, further_from_food = -2):
+    def __init__(self, food_taken = 100, death = -100, iterations_exceeded = -100, closer_to_food = 2, further_from_food = -2, opponent_took_food = -50):
         self.food_taken = food_taken
         self.death = death
         self.iterations_exceeded = iterations_exceeded
         self.closer_to_food = closer_to_food
         self.further_from_food = further_from_food
+        self.opponent_took_food = opponent_took_food
 
     def calculate_reward(self, before, after, snake_id):
         reward = 0
@@ -185,6 +188,9 @@ class Rewarder1:
 
         if(before.scores[snake_id] < after.scores[snake_id]):
             reward += self.food_taken
+
+        if(any(before.scores[i] < after.scores[i] and i != snake_id for i in range(after.n))):
+            reward += self.opponent_took_food
 
         if(after.is_collision(snake_id)):
             reward += self.death

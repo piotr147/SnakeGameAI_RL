@@ -79,14 +79,10 @@ class SnakeGameAI2:
                 pygame.quit()
                 quit()
 
-        distances_to_food_before = [self.dist_to_food(i) for i in range(self.n)]
-
         # 2. Move
         self._move(actions)
         for i in range(len(self.snakes)):
             self.snakes[i].insert(0,self.heads[i])
-
-        distances_to_food_after = [self.dist_to_food(i) for i in range(self.n)]
 
         # 3. Check if game Over
         game_over = False

@@ -108,8 +108,8 @@ class Agents:
             move = random.randint(0,2)
             final_move[move]=1
         else:
-            state0 = torch.tensor(state,dtype=torch.float).cuda()
-            prediction = self.models[snake_id](state0).cuda() # prediction by model
+            state0 = torch.tensor(state,dtype=torch.float).cpu()
+            prediction = self.models[snake_id](state0).cpu() # prediction by model
             move = torch.argmax(prediction).item()
             final_move[move]=1
         return final_move
