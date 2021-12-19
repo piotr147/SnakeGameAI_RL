@@ -5,6 +5,7 @@ from collections import namedtuple
 import numpy as np
 import math
 pygame.init()
+import copy
 font = pygame.font.SysFont('arial', 25)
 
 # Reset
@@ -71,7 +72,6 @@ class SnakeGameAI2:
 
     def play_step(self, actions):
         self.frame_iteration+=1
-        rewards = [0 for _ in range(len(self.snakes))]
 
         # 1. Collect the user input
         for event in pygame.event.get():
@@ -88,41 +88,29 @@ class SnakeGameAI2:
 
         distances_to_food_after = [self.dist_to_food(i) for i in range(self.n)]
 
-        for i in range(self.n):
-            if(distances_to_food_after[i] < distances_to_food_before[i]):
-                rewards[i] = rewards[i] + 1
-            else:
-                rewards[i] = rewards[i] - 1
-
         # 3. Check if game Over
         game_over = False
 
         for i in range(len(self.snakes)):
             if(self.is_collision(i)):
                 game_over=True
-                rewards[i] = -100
 
         if(self.frame_iteration > 100*sum(len(sn) for sn in self.snakes) // self.n):
             game_over=True
-            for i in range(self.n):
-                rewards[i] = rewards[i] - 100
 
         if(game_over):
             game_over=True
-            # reward = -10
-            return rewards,game_over,self.scores
+            return game_over,self.scores
 
         # 4. Place new Food or just move
         if(any(self.food == hd for hd in self.heads)):
             scored_ind = [i for i in range(len(self.snakes)) if self.food == self.heads[i]][0]
             self.scores[scored_ind] = self.scores[scored_ind] + 1
-            rewards[scored_ind] = rewards[scored_ind] + 100
             self._place__food()
             for i in range(len(self.snakes)):
                 if i == scored_ind:
                     continue
                 self.snakes[i].pop()
-                rewards[i] = rewards[i] - 2
         else:
             for i in range(len(self.snakes)):
                 self.snakes[i].pop()
@@ -132,7 +120,7 @@ class SnakeGameAI2:
         self.clock.tick(SPEED)
         # 6. Return game Over and Display Score
 
-        return rewards,game_over,self.scores
+        return game_over,self.scores
 
     def _update_ui(self):
         self.display.fill(BLACK)
@@ -198,3 +186,14 @@ class SnakeGameAI2:
             if(pt in self.snakes[i][0:]):
                 return True
         return False
+
+    def create_copy(self):
+        game_copy = SnakeGameAI2(self.w, self.h, self.n)
+        game_copy.directions = copy.deepcopy(self.directions)
+        game_copy.heads = copy.deepcopy(self.heads)
+        game_copy.snakes = copy.deepcopy(self.snakes)
+        game_copy.scores = copy.deepcopy(self.scores)
+        game_copy.food = copy.deepcopy(self.food)
+        game_copy.frame_iteration = copy.deepcopy(self.frame_iteration)
+
+        return game_copy
