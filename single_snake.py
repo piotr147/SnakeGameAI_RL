@@ -2,20 +2,28 @@ import torch
 import random
 import numpy as np
 from collections import deque
-from snake_2_rew import SnakeGameAI2,Direction,Point,BLOCK_SIZE
+from game_ai import SnakeGameAI2,Direction,Point,BLOCK_SIZE
 from model import Linear_QNet,QTrainer
 from Helper import plot
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
 LR = 0.001
 
-class Agents:
-    def __init__(self, rewarders, number_of_snakes = 2):
-        self.n_snakes = number_of_snakes
+class Agent:
+    def __init__(self, rewarder):
+        self.rewarder = rewarder
+        self.gamma = 0.9 # discount rate
+        self.memory = deque(maxlen=MAX_MEMORY)
+        self.model = Linear_QNet(11,256,3)
+        self.trainer = QTrainer(self.model,lr=LR,gamma=self.gamma)
+
+class AgentsSupervisor:
+    def __init__(self, agents):
+        self.n_snakes = len(agents)
+        self.agents = agents
         self.n_game = 0
         self.epsilon = 0 # Randomness
         self.gamma = 0.9 # discount rate
-        self.rewarders = rewarders
 
         self.memories = []
         self.models = []
@@ -25,12 +33,6 @@ class Agents:
             self.memories.append(deque(maxlen=MAX_MEMORY)) # popleft()
             self.models.append(Linear_QNet(11,256,3))
             self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
-        # for n,p in self.model.named_parameters():
-        #     print(p.device,'',n)
-        # self.model.to('cuda')
-        # for n,p in self.model.named_parameters():
-        #     print(p.device,'',n)
-        # TODO: model,trainer
 
     # state (11 Values)
     #[ danger straight, danger right, danger left,
@@ -86,99 +88,91 @@ class Agents:
         return np.array(state,dtype=int)
 
     def remember(self,state,action,reward,next_state,done,snake_id):
-        self.memories[snake_id].append((state,action,reward,next_state,done)) # popleft if memory exceed
+        self.agents[snake_id].memory.append((state,action,reward,next_state,done)) # popleft if memory exceed
 
     def train_long_memory(self, snake_id):
-        if (len(self.memories[snake_id]) > BATCH_SIZE):
-            mini_sample = random.sample(self.memories[snake_id],BATCH_SIZE)
+        if (len(self.agents[snake_id].memory) > BATCH_SIZE):
+            mini_sample = random.sample(self.agents[snake_id].memory,BATCH_SIZE)
         else:
-            mini_sample = self.memories[snake_id]
+            mini_sample = self.agents[snake_id].memory
         states,actions,rewards,next_states,dones = zip(*mini_sample)
-        self.trainers[snake_id].train_step(states,actions,rewards,next_states,dones)
+        self.agents[snake_id].trainer.train_step(states,actions,rewards,next_states,dones)
 
     def train_short_memory(self,state,action,reward,next_state,done,snake_id):
-        self.trainers[snake_id].train_step(state,action,reward,next_state,done)
+        self.agents[snake_id].trainer.train_step(state,action,reward,next_state,done)
 
     def get_action(self,state,snake_id):
         # random moves: tradeoff explotation / exploitation
         self.epsilon = 80 - self.n_game
-        if self.epsilon <= 0:
-            self.epsilon = 2
+        # if self.epsilon <= 0:
+        #     self.epsilon = 2
         final_move = [0,0,0]
         if(random.randint(0,200)<self.epsilon):
             move = random.randint(0,2)
             final_move[move]=1
         else:
-            state0 = torch.tensor(state,dtype=torch.float).cpu()
-            prediction = self.models[snake_id](state0).cpu() # prediction by model
+            state0 = torch.tensor(state,dtype=torch.float).cuda()
+            prediction = self.agents[snake_id].model(state0).cuda() # prediction by model
             move = torch.argmax(prediction).item()
             final_move[move]=1
         return final_move
 
 def train():
-    plot_scores = []
-    plot_mean_scores = []
-    total_score = 0
 
-    # rewarders = [Rewarder1(), Rewarder1(opponent_took_food=0)]
-    # agent = Agents(rewarders, 2)
-    rewarders = [Rewarder1()]
-    agent = Agents(rewarders, 1)
-    game = SnakeGameAI2(n = agent.n_snakes)
-    records = [0 for _ in range(agent.n_snakes)]
+    agents = [Agent(Rewarder1(death=-10, opponent_took_food=0, food_taken=10, closer_to_food=1, further_from_food=-1, iterations_exceeded=-10, cycle_found=0))]
+    supervisor = AgentsSupervisor(agents)
+
+    game = SnakeGameAI2(n = supervisor.n_snakes)
+    records = [0 for _ in range(supervisor.n_snakes)]
     while True:
         game_before = game.create_copy()
         # Get Old state
-        states_old = [agent.get_state(game, i) for i in range(agent.n_snakes)]
+        states_old = [supervisor.get_state(game, i) for i in range(supervisor.n_snakes)]
 
         # get move
-        final_moves = [agent.get_action(states_old[i], i) for i in range(agent.n_snakes)]
+        final_moves = [supervisor.get_action(states_old[i], i) for i in range(supervisor.n_snakes)]
 
         # perform move and get new state
         done, scores = game.play_step(final_moves)
-        states_new = [agent.get_state(game, i) for i in range(agent.n_snakes)]
-        rewards = [rewarders[i].calculate_reward(game_before, game, i) for i in range(agent.n_snakes)]
+        states_new = [supervisor.get_state(game, i) for i in range(supervisor.n_snakes)]
+        rewards = [supervisor.agents[i].rewarder.calculate_reward(supervisor.memories[i], game_before, game, i) for i in range(supervisor.n_snakes)]
 
         # train short memory
-        for i in range(agent.n_snakes):
-            agent.train_short_memory(states_old[i],final_moves[i],rewards[i],states_new[i],done,i)
+        for i in range(supervisor.n_snakes):
+            supervisor.train_short_memory(states_old[i],final_moves[i],rewards[i],states_new[i],done,i)
 
         #remember
-        for i in range(agent.n_snakes):
-            agent.remember(states_old[i],final_moves[i],rewards[i],states_new[i],done,i)
+        for i in range(supervisor.n_snakes):
+            supervisor.remember(states_old[i],final_moves[i],rewards[i],states_new[i],done,i)
 
         if done:
             # Train long memory,plot result
             game.reset()
-            agent.n_game += 1
-            text = 'Game: ' + str(agent.n_game)
-            for i in range(agent.n_snakes):
-                agent.train_long_memory(i)
+            supervisor.n_game += 1
+            text = 'Game: ' + str(supervisor.n_game)
+            for i in range(supervisor.n_snakes):
+                supervisor.train_long_memory(i)
                 if(scores[i] > records[i]): # new High score
                     records[i] = scores[i]
-                    agent.models[i].save()
+                    supervisor.models[i].save()
 
-                text = text + ', Score ' + str(i) + ': ' + str(scores[i]) + ', Record ' + str(i) + ': '+ str(records[i]) + ', Rewards ' + str(i) + ': '+ str(rewards[i])
+                text = text + ', Score ' + str(i) + ': ' + str(scores[i]).zfill(3) + ', Record ' + str(i) + ': '+ str(records[i]).zfill(3)
 
             print(text)
 
-            # plot_scores.append(score)
-            # total_score+=score
-            # mean_score = total_score / agent.n_game
-            # plot_mean_scores.append(mean_score)
-            # plot(plot_scores,plot_mean_scores)
-
 
 class Rewarder1:
-    def __init__(self, food_taken = 100, death = -100, iterations_exceeded = -100, closer_to_food = 2, further_from_food = -2, opponent_took_food = -50):
+    def __init__(self, food_taken = 100, death = -100, iterations_exceeded = -100, closer_to_food = 2,
+    further_from_food = -2, opponent_took_food = 0, cycle_found = 0):
         self.food_taken = food_taken
         self.death = death
         self.iterations_exceeded = iterations_exceeded
         self.closer_to_food = closer_to_food
         self.further_from_food = further_from_food
         self.opponent_took_food = opponent_took_food
+        self.cycle_found = cycle_found
 
-    def calculate_reward(self, before, after, snake_id):
+    def calculate_reward(self, memories, before, after, snake_id):
         reward = 0
 
         if(before.dist_to_food(snake_id) > after.dist_to_food(snake_id)):
@@ -198,9 +192,36 @@ class Rewarder1:
         if(after.frame_iteration > 100*sum(len(sn) for sn in after.snakes) // after.n):
             reward += self.iterations_exceeded
 
+        if(not self._find_cycles(memories, 2, 4) and not self._find_cycles(memories, 3, 6)):
+            if(self._find_cycles(memories, 4, 8) or self._find_cycles(memories, 6, 12) or self._find_cycles(memories, 8, 16)):
+                reward += self.cycle_found
+
         return reward
 
+    def _find_cycles(self, memories, cycle_length, history_depth):
+        if(len(memories) < history_depth):
+            return False
+        sequences = []
+        new_seq = []
+        for i in range(history_depth):
+            new_seq.append(memories[len(memories) - 1 - i][1])
+            if len(new_seq) == cycle_length:
+                sequences.append(new_seq)
+                new_seq = []
 
+        for i in range(len(sequences) - 1):
+            if(not self._compare_sequences(sequences[i], sequences[i+1])):
+                return False
+        return True
+
+    def _compare_sequences(self, seq1, seq2):
+        if(len(seq1) != len(seq2)):
+            return False
+        for i in range(len(seq1)):
+            for j in range(len(seq1[i])):
+                if(seq1[i][j] != seq2[i][j]):
+                    return False
+        return True
 
 if(__name__=="__main__"):
     train()
