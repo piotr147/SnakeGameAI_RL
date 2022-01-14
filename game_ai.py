@@ -31,6 +31,7 @@ BLUE1 = (0,0,255)
 BLUE2 = (0,100,255)
 PRIMARY_COLS = [(0,0,255), (0,255,0), (255,0,0)]
 SECONDARY_COLS = [(0,100,255),(100,255,0), (255,0,100)]
+WALLS_COL = (255, 255, 0)
 BLACK = (0,0,0)
 
 class SnakeGameAI2:
@@ -52,6 +53,12 @@ class SnakeGameAI2:
         self.scores = [0 for _ in range(self.n)]
         w_diff = self.w // BLOCK_SIZE // (self.n + 1)
         h_diff = self.h // BLOCK_SIZE // (self.n + 1)
+        self.walls = [Point(15 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(5, 20)]
+        self.walls += ([Point(16 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(5, 20)])
+        self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
+        self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
+        self.walls += ([Point(23 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
+        self.walls += ([Point(23 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
 
         for i in range(self.n):
             self.heads.append(Point((w_diff + i * w_diff) * BLOCK_SIZE, (h_diff + i * h_diff) * BLOCK_SIZE))
@@ -68,7 +75,7 @@ class SnakeGameAI2:
         x = random.randint(0,(self.w-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
         y = random.randint(0,(self.h-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
         self.food = Point(x,y)
-        if(any(self.food in sn for sn in self.snakes)):
+        if(any(self.food in sn for sn in self.snakes)) or (any(self.food in w for w in self.walls)):
             self._place__food()
 
 
@@ -128,6 +135,8 @@ class SnakeGameAI2:
                 pygame.draw.rect(self.display,PRIMARY_COLS[i%len(PRIMARY_COLS)],pygame.Rect(pt.x,pt.y,BLOCK_SIZE,BLOCK_SIZE))
                 pygame.draw.rect(self.display,SECONDARY_COLS[i%len(SECONDARY_COLS)],pygame.Rect(pt.x+4,pt.y+4,12,12))
         pygame.draw.rect(self.display,RED,pygame.Rect(self.food.x,self.food.y,BLOCK_SIZE,BLOCK_SIZE))
+        for w in self.walls:
+            pygame.draw.rect(self.display,WALLS_COL,pygame.Rect(w.x,w.y,BLOCK_SIZE,BLOCK_SIZE))
         text = font.render("Score: "+str(self.scores),True,WHITE)
         text = ""
         for i in range(len(self.snakes)):
@@ -184,6 +193,9 @@ class SnakeGameAI2:
                 continue
             if(pt in self.snakes[i][0:]):
                 return True
+        #walls:
+        if pt in self.walls:
+            return True
         return False
 
     def create_copy(self):

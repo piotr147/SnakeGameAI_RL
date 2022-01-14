@@ -119,7 +119,7 @@ class AgentsSupervisor:
 
 def train():
 
-    agents = [Agent(Rewarder1(death=-10, opponent_took_food=0, food_taken=10, closer_to_food=1, further_from_food=-1, iterations_exceeded=-10, cycle_found=0))]
+    agents = [Agent(Rewarder1(death=-10, opponent_took_food=0, food_taken=10, closer_to_food=0, further_from_food=0, iterations_exceeded=-10, cycle_found=0))]
     supervisor = AgentsSupervisor(agents)
 
     game = SnakeGameAI2(n = supervisor.n_snakes)
