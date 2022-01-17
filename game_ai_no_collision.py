@@ -54,12 +54,6 @@ class SnakeGameAI2:
         w_diff = self.w // BLOCK_SIZE // (self.n + 1)
         h_diff = self.h // BLOCK_SIZE // (self.n + 1)
         self.walls = []
-        # self.walls += [Point(15 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(5, 20)]
-        # self.walls += ([Point(16 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(5, 20)])
-        # self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
-        # self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
-        # self.walls += ([Point(23 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
-        # self.walls += ([Point(23 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
 
         for i in range(self.n):
             self.heads.append(Point((w_diff + i * w_diff) * BLOCK_SIZE, (h_diff + i * h_diff) * BLOCK_SIZE))
@@ -120,18 +114,6 @@ class SnakeGameAI2:
 
         if(food_taken):
             self._place__food()
-
-        # if(any(self.food == hd for hd in self.heads)):
-        #     scored_ind = [i for i in range(len(self.snakes)) if self.food == self.heads[i]][0]
-        #     self.scores[scored_ind] = self.scores[scored_ind] + 1
-        #     self._place__food()
-        #     for i in range(len(self.snakes)):
-        #         if i == scored_ind:
-        #             continue
-        #         self.snakes[i].pop()
-        # else:
-        #     for i in range(len(self.snakes)):
-        #         self.snakes[i].pop()
 
         # 5. Update UI and clock
         self._update_ui()

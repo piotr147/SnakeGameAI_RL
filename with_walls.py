@@ -33,8 +33,6 @@ class AgentsSupervisor:
 
         for i in range(self.n_snakes):
             self.memories.append(deque(maxlen=MAX_MEMORY)) # popleft()
-            # self.models.append(Linear_QNet(11,256,3))
-            # self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
 
     # state (11 Values)
     #[ danger straight, danger right, danger left,

@@ -155,12 +155,6 @@ class AgentsSupervisor:
         return final_move
 
 def train(snake_type=1, iterations=1000, filename="default_result.csv", agents = [], random_rounds=500):
-    # if snake_type == 1:
-    #     agents = [Agent(Rewarder(death=-100, opponent_took_food=0, food_taken=100, closer_to_food=2, further_from_food=-2, iterations_exceeded=-100, cycle_found=0))]
-    # elif snake_type == 2:
-    #     agents = [Agent(Rewarder(death=-100, opponent_took_food=0, food_taken=100, closer_to_food=0, further_from_food=0, iterations_exceeded=-100, cycle_found=0))]
-    # else:
-    #     agents = [Agent(Rewarder(death=-100, opponent_took_food=0, food_taken=100, closer_to_food=0, further_from_food=-2, iterations_exceeded=-100, cycle_found=0))]
 
     supervisor = AgentsSupervisor(agents, random_rounds=random_rounds)
 

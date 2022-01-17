@@ -33,8 +33,6 @@ class AgentsSupervisor:
 
         for i in range(self.n_snakes):
             self.memories.append(deque(maxlen=MAX_MEMORY)) # popleft()
-            # self.models.append(Linear_QNet(11,256,3))
-            # self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
 
     # state (11 Values)
     #[ danger straight, danger right, danger left,
@@ -106,8 +104,6 @@ class AgentsSupervisor:
     def get_action(self,state,snake_id):
         # random moves: tradeoff explotation / exploitation
         self.epsilon = self.random_rounds - self.n_game
-        # if self.epsilon <= 0:
-        #     self.epsilon = 2
         final_move = [0,0,0]
         if(random.randint(0,200)<self.epsilon):
             move = random.randint(0,2)

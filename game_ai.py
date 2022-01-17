@@ -54,12 +54,6 @@ class SnakeGameAI2:
         w_diff = self.w // BLOCK_SIZE // (self.n + 1)
         h_diff = self.h // BLOCK_SIZE // (self.n + 1)
         self.walls = []
-        # self.walls = [Point(15 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(5, 20)]
-        # self.walls += ([Point(16 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(5, 20)])
-        # self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
-        # self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
-        # self.walls += ([Point(23 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
-        # self.walls += ([Point(23 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
 
         for i in range(self.n):
             self.heads.append(Point((w_diff + i * w_diff) * BLOCK_SIZE, (h_diff + i * h_diff) * BLOCK_SIZE))

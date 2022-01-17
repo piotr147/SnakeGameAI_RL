@@ -14,7 +14,6 @@ class Linear_QNet(nn.Module):
             print('loading from ' + load_from_model)
             model_folder_path = '.'
             file_name = os.path.join(model_folder_path,load_from_model)
-            xd = torch.load(file_name)
             self.load_state_dict(torch.load(file_name))
             self.eval()
 

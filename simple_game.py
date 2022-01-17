@@ -33,8 +33,6 @@ class AgentsSupervisor:
 
         for i in range(self.n_snakes):
             self.memories.append(deque(maxlen=MAX_MEMORY)) # popleft()
-            # self.models.append(Linear_QNet(11,256,3))
-            # self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
 
     # state (11 Values)
     #[ danger straight, danger right, danger left,
@@ -121,8 +119,6 @@ class AgentsSupervisor:
 
 def train(agents = [], random_rounds=500):
 
-    # agents = [Agent(Rewarder(), 'snake1_single.pth', load_from_model='snake1_single_toload.pth')]
-    # agents = [Agent(Rewarder(), 'snake1_single.pth')]
     if len(agents) == 0:
         agents = [Agent(Rewarder())]
     supervisor = AgentsSupervisor(agents, random_rounds=random_rounds)
