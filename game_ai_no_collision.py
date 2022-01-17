@@ -76,7 +76,7 @@ class SnakeGameAI2:
         x = random.randint(0,(self.w-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
         y = random.randint(0,(self.h-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
         self.food = Point(x,y)
-        if(any(self.food in sn for sn in self.snakes)) or (any(self.food in w for w in self.walls)):
+        if(any(self.food in sn for sn in self.snakes)) or (self.food in self.walls):
             self._place__food()
 
 

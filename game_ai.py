@@ -53,12 +53,13 @@ class SnakeGameAI2:
         self.scores = [0 for _ in range(self.n)]
         w_diff = self.w // BLOCK_SIZE // (self.n + 1)
         h_diff = self.h // BLOCK_SIZE // (self.n + 1)
-        self.walls = [Point(15 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(5, 20)]
-        self.walls += ([Point(16 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(5, 20)])
-        self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
-        self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
-        self.walls += ([Point(23 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
-        self.walls += ([Point(23 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
+        self.walls = []
+        #self.walls += [Point(13 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 15)]
+        #self.walls += ([Point(14 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 15)])
+        # self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
+        # self.walls += ([Point(8 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(16, 24)])
+        #self.walls += ([Point(21 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(0, 8)])
+        #self.walls += ([Point(22 * BLOCK_SIZE, i * BLOCK_SIZE) for i in range(10, 24)])
 
         for i in range(self.n):
             self.heads.append(Point((w_diff + i * w_diff) * BLOCK_SIZE, (h_diff + i * h_diff) * BLOCK_SIZE))
@@ -75,7 +76,7 @@ class SnakeGameAI2:
         x = random.randint(0,(self.w-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
         y = random.randint(0,(self.h-BLOCK_SIZE)//BLOCK_SIZE)*BLOCK_SIZE
         self.food = Point(x,y)
-        if(any(self.food in sn for sn in self.snakes)) or (any(self.food in w for w in self.walls)):
+        if(any(self.food in sn for sn in self.snakes)) or (self.food in self.walls):
             self._place__food()
 
 

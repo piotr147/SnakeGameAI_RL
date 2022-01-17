@@ -1,3 +1,6 @@
+from ast import AsyncFunctionDef
+from logging import setLogRecordFactory
+from tarfile import BLOCKSIZE
 import torch
 import random
 import numpy as np
@@ -15,7 +18,7 @@ class Agent:
         self.rewarder = rewarder
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = Linear_QNet(11,256,3)
+        self.model = Linear_QNet(15,256,3)
         self.trainer = QTrainer(self.model,lr=LR,gamma=self.gamma)
 
 class AgentsSupervisor:
@@ -32,7 +35,7 @@ class AgentsSupervisor:
 
         for i in range(self.n_snakes):
             self.memories.append(deque(maxlen=MAX_MEMORY)) # popleft()
-            self.models.append(Linear_QNet(11,256,3))
+            self.models.append(Linear_QNet(15,256,3))
             self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
 
     # state (11 Values)
@@ -45,10 +48,21 @@ class AgentsSupervisor:
     # food up, food down]
     def get_state(self,game,snake_id):
         head = game.snakes[snake_id][0]
+        #   ll  l       ls
+        #snakee head    s
+        #   rr  r       sr
+        ####################
+        #   lu  u       ur
+        #   l   head    r
+        #   ld  d       rd
         point_l=Point(head.x - BLOCK_SIZE, head.y)
         point_r=Point(head.x + BLOCK_SIZE, head.y)
         point_u=Point(head.x, head.y - BLOCK_SIZE)
         point_d=Point(head.x, head.y + BLOCK_SIZE)
+        point_lu = Point(head.x - BLOCK_SIZE, head.y - BLOCK_SIZE)
+        point_ur = Point(head.x + BLOCK_SIZE, head.y - BLOCK_SIZE)
+        point_rd = Point(head.x + BLOCK_SIZE, head.y + BLOCK_SIZE)
+        point_ld = Point(head.x - BLOCK_SIZE, head.y + BLOCK_SIZE)
 
         dir_l = game.directions[snake_id] == Direction.LEFT
         dir_r = game.directions[snake_id] == Direction.RIGHT
@@ -73,6 +87,30 @@ class AgentsSupervisor:
             (dir_u and game.is_collision(snake_id, point_l))or
             (dir_r and game.is_collision(snake_id, point_u))or
             (dir_l and game.is_collision(snake_id, point_d)),
+
+            #Danger LeftLeft
+            (dir_d and game.is_collision(snake_id, point_ur))or
+            (dir_u and game.is_collision(snake_id, point_ld))or
+            (dir_r and game.is_collision(snake_id, point_lu))or
+            (dir_l and game.is_collision(snake_id, point_rd)),
+
+            #Danger LeftStraigth
+            (dir_d and game.is_collision(snake_id, point_rd))or
+            (dir_u and game.is_collision(snake_id, point_lu))or
+            (dir_r and game.is_collision(snake_id, point_ur))or
+            (dir_l and game.is_collision(snake_id, point_ld)),
+
+            #Danger StraigthRight
+            (dir_d and game.is_collision(snake_id, point_ld))or
+            (dir_u and game.is_collision(snake_id, point_ur))or
+            (dir_r and game.is_collision(snake_id, point_rd))or
+            (dir_l and game.is_collision(snake_id, point_lu)),
+
+            #Danger RightRight
+            (dir_d and game.is_collision(snake_id, point_lu))or
+            (dir_u and game.is_collision(snake_id, point_rd))or
+            (dir_r and game.is_collision(snake_id, point_ld))or
+            (dir_l and game.is_collision(snake_id, point_ur)),
 
             # Move Direction
             dir_l,
@@ -104,9 +142,9 @@ class AgentsSupervisor:
 
     def get_action(self,state,snake_id):
         # random moves: tradeoff explotation / exploitation
-        self.epsilon = 1000 - self.n_game #200 80
+        self.epsilon = 1000 - self.n_game
         if self.epsilon <= 0:
-            self.epsilon = 10
+            self.epsilon = 2
         final_move = [0,0,0]
         if(random.randint(0,1000)<self.epsilon):
             move = random.randint(0,2)
