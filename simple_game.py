@@ -1,6 +1,7 @@
 import torch
 import random
 import numpy as np
+import csv
 from collections import deque
 from game_ai import SnakeGameAI2,Direction,Point,BLOCK_SIZE
 from model import Linear_QNet,QTrainer
@@ -10,20 +11,21 @@ BATCH_SIZE = 1000
 LR = 0.001
 
 class Agent:
-    def __init__(self, rewarder):
+    def __init__(self, rewarder, model_name, load_from_model = ''):
         self.rewarder = rewarder
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = Linear_QNet(11,256,3)
+        self.model = Linear_QNet(11,256,3, model_name=model_name, load_from_model = load_from_model)
         self.trainer = QTrainer(self.model,lr=LR,gamma=self.gamma)
 
 class AgentsSupervisor:
-    def __init__(self, agents):
+    def __init__(self, agents, random_rounds=80):
         self.n_snakes = len(agents)
         self.agents = agents
         self.n_game = 0
         self.epsilon = 0 # Randomness
         self.gamma = 0.9 # discount rate
+        self.random_rounds = random_rounds
 
         self.memories = []
         self.models = []
@@ -31,8 +33,8 @@ class AgentsSupervisor:
 
         for i in range(self.n_snakes):
             self.memories.append(deque(maxlen=MAX_MEMORY)) # popleft()
-            self.models.append(Linear_QNet(11,256,3))
-            self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
+            # self.models.append(Linear_QNet(11,256,3))
+            # self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
 
     # state (11 Values)
     #[ danger straight, danger right, danger left,
@@ -103,11 +105,11 @@ class AgentsSupervisor:
 
     def get_action(self,state,snake_id):
         # random moves: tradeoff explotation / exploitation
-        self.epsilon = 80 - self.n_game
+        self.epsilon = self.random_rounds - self.n_game
         # if self.epsilon <= 0:
         #     self.epsilon = 2
         final_move = [0,0,0]
-        if(random.randint(0,200)<self.epsilon):
+        if(random.randint(0,800)<self.epsilon):
             move = random.randint(0,2)
             final_move[move]=1
         else:
@@ -117,10 +119,14 @@ class AgentsSupervisor:
             final_move[move]=1
         return final_move
 
-def train():
+def train(agents = [], random_rounds=500):
 
-    agents = [Agent(Rewarder1(death=-10, opponent_took_food=0, food_taken=10, closer_to_food=0, further_from_food=0, iterations_exceeded=-10, cycle_found=0))]
-    supervisor = AgentsSupervisor(agents)
+    # agents = [Agent(Rewarder(), 'snake1_single.pth', load_from_model='snake1_single_toload.pth')]
+    # agents = [Agent(Rewarder(), 'snake1_single.pth')]
+    if len(agents) == 0:
+        agents = [Agent(Rewarder())]
+    supervisor = AgentsSupervisor(agents, random_rounds=random_rounds)
+    scores_to_save = [[] for _ in range(len(agents))]
 
     game = SnakeGameAI2(n = supervisor.n_snakes)
     records = [0 for _ in range(supervisor.n_snakes)]
@@ -154,14 +160,18 @@ def train():
                 supervisor.train_long_memory(i)
                 if(scores[i] > records[i]): # new High score
                     records[i] = scores[i]
-                    supervisor.models[i].save()
+                    supervisor.agents[i].model.save()
 
                 text = text + ', Score ' + str(i) + ': ' + str(scores[i]).zfill(3) + ', Record ' + str(i) + ': '+ str(records[i]).zfill(3)
+                scores_to_save[i].append(scores[i])
+                with open('snake' + str(i), 'w', newline='') as myfile:
+                    wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+                    wr.writerow(scores_to_save[i])
 
             print(text)
 
 
-class Rewarder1:
+class Rewarder:
     def __init__(self, food_taken = 100, death = -100, iterations_exceeded = -100, closer_to_food = 2,
     further_from_food = -2, opponent_took_food = 0, cycle_found = 0):
         self.food_taken = food_taken

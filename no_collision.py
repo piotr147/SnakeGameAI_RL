@@ -3,7 +3,7 @@ import random
 import numpy as np
 import csv
 from collections import deque
-from game_ai import SnakeGameAI2,Direction,Point,BLOCK_SIZE
+from game_ai_no_collision import SnakeGameAI2,Direction,Point,BLOCK_SIZE
 from model import Linear_QNet,QTrainer
 from Helper import plot
 MAX_MEMORY = 100_000
@@ -33,8 +33,6 @@ class AgentsSupervisor:
 
         for i in range(self.n_snakes):
             self.memories.append(deque(maxlen=MAX_MEMORY)) # popleft()
-            # self.models.append(Linear_QNet(11,256,3))
-            # self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
 
     # state (11 Values)
     #[ danger straight, danger right, danger left,
@@ -119,11 +117,11 @@ class AgentsSupervisor:
             final_move[move]=1
         return final_move
 
-def train():
+def train(agents = [], random_rounds=500):
 
-    agents = [Agent(Rewarder()), Agent(Rewarder(closer_to_food=0, further_from_food=0))]
-    agents = [Agent(Rewarder(), 'snake1_single.pth'), Agent(Rewarder()), Agent(Rewarder(closer_to_food=0, further_from_food=0), 'snake2_single.pth')]
-    supervisor = AgentsSupervisor(agents, random_rounds=0)
+    if len(agents) == 0:
+        agents = [Agent(Rewarder(), 'snake1_single.pth'), Agent(Rewarder()), Agent(Rewarder(closer_to_food=0, further_from_food=0), 'snake2_single.pth')]
+    supervisor = AgentsSupervisor(agents, random_rounds=random_rounds)
     scores_to_save = [[] for _ in range(len(agents))]
 
     game = SnakeGameAI2(n = supervisor.n_snakes)

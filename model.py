@@ -5,18 +5,26 @@ import torch.nn.functional as F
 import os
 
 class Linear_QNet(nn.Module):
-    def __init__(self,input_size,hidden_size,output_size):
+    def __init__(self,input_size,hidden_size,output_size,model_name, load_from_model = ''):
         super().__init__()
         self.linear1 = nn.Linear(input_size,hidden_size).cpu()
         self.linear2 = nn.Linear(hidden_size,output_size).cpu()
+        self.model_name = model_name
+        if load_from_model != '':
+            print('loading from ' + load_from_model)
+            model_folder_path = '.'
+            file_name = os.path.join(model_folder_path,load_from_model)
+            xd = torch.load(file_name)
+            self.load_state_dict(torch.load(file_name))
+            self.eval()
 
     def forward(self, x):
         x = F.relu(self.linear1(x))
         x = self.linear2(x)
         return x
-    def save(self, file_name='model.pth'):
+    def save(self):
         model_folder_path = '.'
-        file_name = os.path.join(model_folder_path,file_name)
+        file_name = os.path.join(model_folder_path,self.model_name)
         torch.save(self.state_dict(),file_name)
 
 class QTrainer:

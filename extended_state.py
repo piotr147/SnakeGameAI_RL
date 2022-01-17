@@ -1,3 +1,6 @@
+from ast import AsyncFunctionDef
+from logging import setLogRecordFactory
+from tarfile import BLOCKSIZE
 import torch
 import random
 import numpy as np
@@ -19,13 +22,12 @@ class Agent:
         self.trainer = QTrainer(self.model,lr=LR,gamma=self.gamma)
 
 class AgentsSupervisor:
-    def __init__(self, agents, random_rounds=80):
+    def __init__(self, agents):
         self.n_snakes = len(agents)
         self.agents = agents
         self.n_game = 0
         self.epsilon = 0 # Randomness
         self.gamma = 0.9 # discount rate
-        self.random_rounds = random_rounds
 
         self.memories = []
         self.models = []
@@ -33,8 +35,6 @@ class AgentsSupervisor:
 
         for i in range(self.n_snakes):
             self.memories.append(deque(maxlen=MAX_MEMORY)) # popleft()
-            # self.models.append(Linear_QNet(11,256,3))
-            # self.trainers.append(QTrainer(self.models[i],lr=LR,gamma=self.gamma))
 
     # state (11 Values)
     #[ danger straight, danger right, danger left,
@@ -46,10 +46,21 @@ class AgentsSupervisor:
     # food up, food down]
     def get_state(self,game,snake_id):
         head = game.snakes[snake_id][0]
+        #   ll  l       ls
+        #snakee head    s
+        #   rr  r       sr
+        ####################
+        #   lu  u       ur
+        #   l   head    r
+        #   ld  d       rd
         point_l=Point(head.x - BLOCK_SIZE, head.y)
         point_r=Point(head.x + BLOCK_SIZE, head.y)
         point_u=Point(head.x, head.y - BLOCK_SIZE)
         point_d=Point(head.x, head.y + BLOCK_SIZE)
+        point_lu = Point(head.x - BLOCK_SIZE, head.y - BLOCK_SIZE)
+        point_ur = Point(head.x + BLOCK_SIZE, head.y - BLOCK_SIZE)
+        point_rd = Point(head.x + BLOCK_SIZE, head.y + BLOCK_SIZE)
+        point_ld = Point(head.x - BLOCK_SIZE, head.y + BLOCK_SIZE)
 
         dir_l = game.directions[snake_id] == Direction.LEFT
         dir_r = game.directions[snake_id] == Direction.RIGHT
@@ -74,6 +85,30 @@ class AgentsSupervisor:
             (dir_u and game.is_collision(snake_id, point_l))or
             (dir_r and game.is_collision(snake_id, point_u))or
             (dir_l and game.is_collision(snake_id, point_d)),
+
+            #Danger LeftLeft
+            (dir_d and game.is_collision(snake_id, point_ur))or
+            (dir_u and game.is_collision(snake_id, point_ld))or
+            (dir_r and game.is_collision(snake_id, point_lu))or
+            (dir_l and game.is_collision(snake_id, point_rd)),
+
+            #Danger LeftStraigth
+            (dir_d and game.is_collision(snake_id, point_rd))or
+            (dir_u and game.is_collision(snake_id, point_lu))or
+            (dir_r and game.is_collision(snake_id, point_ur))or
+            (dir_l and game.is_collision(snake_id, point_ld)),
+
+            #Danger StraigthRight
+            (dir_d and game.is_collision(snake_id, point_ld))or
+            (dir_u and game.is_collision(snake_id, point_ur))or
+            (dir_r and game.is_collision(snake_id, point_rd))or
+            (dir_l and game.is_collision(snake_id, point_lu)),
+
+            #Danger RightRight
+            (dir_d and game.is_collision(snake_id, point_lu))or
+            (dir_u and game.is_collision(snake_id, point_rd))or
+            (dir_r and game.is_collision(snake_id, point_ld))or
+            (dir_l and game.is_collision(snake_id, point_ur)),
 
             # Move Direction
             dir_l,
@@ -105,11 +140,11 @@ class AgentsSupervisor:
 
     def get_action(self,state,snake_id):
         # random moves: tradeoff explotation / exploitation
-        self.epsilon = self.random_rounds - self.n_game
-        # if self.epsilon <= 0:
-        #     self.epsilon = 2
+        self.epsilon = 1000 - self.n_game
+        if self.epsilon <= 0:
+            self.epsilon = 2
         final_move = [0,0,0]
-        if(random.randint(0,200)<self.epsilon):
+        if(random.randint(0,1000)<self.epsilon):
             move = random.randint(0,2)
             final_move[move]=1
         else:
@@ -119,16 +154,21 @@ class AgentsSupervisor:
             final_move[move]=1
         return final_move
 
-def train():
+def train(snake_type=1, iterations=1000, filename="default_result.csv", agents = [], random_rounds=500):
+    # if snake_type == 1:
+    #     agents = [Agent(Rewarder(death=-100, opponent_took_food=0, food_taken=100, closer_to_food=2, further_from_food=-2, iterations_exceeded=-100, cycle_found=0))]
+    # elif snake_type == 2:
+    #     agents = [Agent(Rewarder(death=-100, opponent_took_food=0, food_taken=100, closer_to_food=0, further_from_food=0, iterations_exceeded=-100, cycle_found=0))]
+    # else:
+    #     agents = [Agent(Rewarder(death=-100, opponent_took_food=0, food_taken=100, closer_to_food=0, further_from_food=-2, iterations_exceeded=-100, cycle_found=0))]
 
-    agents = [Agent(Rewarder()), Agent(Rewarder(closer_to_food=0, further_from_food=0))]
-    agents = [Agent(Rewarder(), 'snake1_single.pth'), Agent(Rewarder()), Agent(Rewarder(closer_to_food=0, further_from_food=0), 'snake2_single.pth')]
-    supervisor = AgentsSupervisor(agents, random_rounds=0)
-    scores_to_save = [[] for _ in range(len(agents))]
+    supervisor = AgentsSupervisor(agents, random_rounds=random_rounds)
 
     game = SnakeGameAI2(n = supervisor.n_snakes)
     records = [0 for _ in range(supervisor.n_snakes)]
-    while True:
+    csv_list = []
+
+    while supervisor.n_game < iterations:
         game_before = game.create_copy()
         # Get Old state
         states_old = [supervisor.get_state(game, i) for i in range(supervisor.n_snakes)]
@@ -161,12 +201,14 @@ def train():
                     supervisor.agents[i].model.save()
 
                 text = text + ', Score ' + str(i) + ': ' + str(scores[i]).zfill(3) + ', Record ' + str(i) + ': '+ str(records[i]).zfill(3)
-                scores_to_save[i].append(scores[i])
-                with open('snake' + str(i), 'w', newline='') as myfile:
-                    wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-                    wr.writerow(scores_to_save[i])
+            csv_list.append([supervisor.n_game, scores[0]])
 
             print(text)
+
+    with open(filename,'w', newline='') as out:
+        csv_out=csv.writer(out)
+        csv_out.writerow(["Game num","result"])
+        csv_out.writerows(csv_list)
 
 
 class Rewarder:
